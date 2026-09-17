@@ -700,18 +700,18 @@ function bootstrap() {
                 applyFindMyPalette();
 
                 map.addSource('virtual-roads', {
-                    'type': 'geojson',
-                    'data': {
-                        'type': 'FeatureCollection',
-                        'features': [
-                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [START_G, MEET_POINT] } },
-                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [START_M, MEET_POINT] } },
-                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [ROAD_START, ROAD_TARGET_1] } },
-                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [ROAD_START, ROAD_TARGET_2] } },
-                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [[32.888292, 39.930351], [32.887327, 39.930721]] } }
-                        ]
-                    }
-                });
+    'type': 'geojson',
+    'data': {
+        'type': 'FeatureCollection',
+        'features': [
+            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [START_G, [32.888455, 39.930278]] } },
+            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [START_M, [32.890168, 39.929707]] } },
+            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [ROAD_START, ROAD_TARGET_1] } },
+            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [ROAD_START, ROAD_TARGET_2] } },
+            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [[32.888292, 39.930351], [32.887327, 39.930721]] } }
+        ]
+    }
+});
 
                 let firstRoadCoreId = null;
                 let firstBuildingOrTextId = null;
