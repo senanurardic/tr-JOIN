@@ -1,67 +1,55 @@
 /* ============================================================================
  * LOCATION-SHARING SOCIAL DISCONNECTION PARADIGM
- * Condition: Spatial Joining (SJ)
- * Flow (t = 0 is the moment the participant submits their nickname):
- *   Block 0  0-6 s    Starting position, stable (idle GPS jitter only)
- *   Block 1  6-24 s   Synchronous approach: both agents walk in a straight
- *                      line toward each other until they meet (12 s)
- *   Block 2  24-26 s  Both agents stop between blocks (2 s)
- *   Block 3  26-44 s  Asynchronous, independent movement (12 s), kept close
- *                      to the meeting point -- see the CONDITION BLOCK for
- *                      why this is a smaller loop than IM's, not a literal
- *                      reuse of IM's Block 3 schedule.
- *   Block 4  44-47 s  Both agents remain stationary before hand-back to survey
- *   Total sequence: 47 s.
-/* ==========================================================================
- * CONDITION BLOCK -- the only part that differs between the three repos
+ * Condition: JOIN Condition
+ * Total sequence: 33 s
  * ========================================================================== */
-const CONDITION = "SJ";
-const CONDITION_LABEL = "Spatial Joining";
 
-// -- Block 1 (local t = 0-18 s within the block) --------------------------
-// 18 seconds of continuous, synchronous direct approach.
-const SCHEDULE_G_BLOCK1 = [{ d: 18, b: 75 }];
-const SCHEDULE_M_BLOCK1 = [{ d: 18, b: 255 }];
+const CONDITION = "JOIN";
+const CONDITION_LABEL = "Join Condition";
 
-// -- Block 2 (both agents fully stationary for 2 s) ------------------------
-const SCHEDULE_BLOCK2_PAUSE = [{ d: 2, b: null }];
-
-// -- Block 3 (local t = 0-18 s within the block) ---------------------------
-// 18 seconds of continuous, asynchronous movement.
-// The original SJ rectangular path logic is maintained, but scaled to 18s with no pauses.
-const SCHEDULE_G_BLOCK3 = [
-    { d: 8, b: 290 }, { d: 1, b: 20 }, { d: 8, b: 110 }, { d: 1, b: 200 }
-];
-const SCHEDULE_M_BLOCK3 = [
-    { d: 1, b: 65 }, { d: 8, b: 335 }, { d: 1, b: 245 }, { d: 8, b: 155 }
-];
-
-const SCHEDULE_G = SCHEDULE_G_BLOCK1.concat(SCHEDULE_BLOCK2_PAUSE, SCHEDULE_G_BLOCK3);
-const SCHEDULE_M = SCHEDULE_M_BLOCK1.concat(SCHEDULE_BLOCK2_PAUSE, SCHEDULE_M_BLOCK3);
-/* ======================= END OF CONDITION BLOCK ========================== */
-/* ==========================================================================
- * SHARED GEOMETRY AND TIMING (identical in all three conditions)
- * ========================================================================== */
-const MAP_CENTER = [32.870379, 39.921936]; // Ankara -- set with placement-tool.html
-
-// Rotates the whole scene about MAP_CENTER to align the G-M axis with a street.
-// Rotation is an isometry: distances, speeds, separations and synchrony indices
-// are all unchanged by it, so every audit result below holds for any value.
-const SCENE_ROTATION_DEG = 55;
-
+// Map & Camera Settings
+const MAP_CENTER = [32.888735, 39.929456];
+const SCENE_ROTATION_DEG = 41;
 function rot(bearingDeg) { return (bearingDeg + SCENE_ROTATION_DEG + 360) % 360; }
-const MAP_ZOOM = 18.0;                     // locked (min = max = 18.0), 0.458 m/pixel
+const MAP_ZOOM = 17.3;
 
-const WALK_SPEED_MPS = 1.5;                // 5.4 km/h -- normal walking pace
+const WALK_SPEED_MPS = 1.3;
 
-// Block durations (ms), matching the experimental-flow spec exactly.
-const T_STABLE = 6000;   //  0 -  6 s   idle GPS jitter, agents at start position
-const T_BLOCK1 = 18000;  //  6 - 24 s   Block 1 movement (in SCHEDULE_*)
-const T_BLOCK2 =  2000;  // 24 - 26 s   both agents stationary (in SCHEDULE_*)
-const T_BLOCK3 = 18000;  // 26 - 44 s   Block 3 movement (in SCHEDULE_*)
-const T_BLOCK4 =  3000;  // 44 - 47 s   final stationary hold, then hand-back
-const TOTAL_ANIMATION_DURATION = T_STABLE + T_BLOCK1 + T_BLOCK2 + T_BLOCK3 + T_BLOCK4; // 47000
-const FINAL_HOLD_DURATION = 0; // Block 4 above already is the final hold
+// Timeline parameters in milliseconds (Total = 33,000 ms)
+const T_STABLE = 4000;   // 0-4s: Hold
+const T_BLOCK1 = 12000;  // 4-16s: Move to meeting point
+const T_BLOCK2 = 2000;   // 16-18s: Hold at meeting point
+const T_BLOCK3 = 12000;  // 18-30s: Move in diverging directions
+const T_BLOCK4 = 3000;   // 30-33s: Final hold
+const TOTAL_ANIMATION_DURATION = T_STABLE + T_BLOCK1 + T_BLOCK2 + T_BLOCK3 + T_BLOCK4;
+const FINAL_HOLD_DURATION = 0;
+
+function calculateBearing(start, end) {
+    const startLat = start[1] * Math.PI / 180;
+    const startLng = start[0] * Math.PI / 180;
+    const endLat   = end[1]   * Math.PI / 180;
+    const endLng   = end[0]   * Math.PI / 180;
+    const dLng = endLng - startLng;
+    const y = Math.sin(dLng) * Math.cos(endLat);
+    const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
+    let brng = Math.atan2(y, x) * 180 / Math.PI;
+    return (brng + 360) % 360;
+}
+
+// Konumlar [Lng, Lat]
+const START_G = [32.888409, 39.929681];
+const START_M = [32.889090, 39.929422];
+const START_U = [32.888559, 39.929150];
+
+// JOIN koşuluna özel koordinatlar
+const MEET_POINT  = [32.888755, 39.929568]; // 4-16s arası buluşma hedefi
+const DIR_G_AFTER = [32.888541, 39.930243]; // 18-30s G'nin yön hedefi
+const DIR_M_AFTER = [32.889936, 39.929889]; // 18-30s M'nin yön hedefi
+
+// Virtual roads için (görsel)
+const ROAD_START    = [32.888752, 39.929566];
+const ROAD_TARGET_1 = [32.888541, 39.930241];
+const ROAD_TARGET_2 = [32.889835, 39.929885];
 
 const EARTH_RADIUS_M = 6378137;
 
@@ -74,13 +62,6 @@ function offsetMeters(origin, bearingDeg, meters) {
     return [origin[0] + dLng, origin[1] + dLat];
 }
 
-// Start distances increased from 20.0 to 32.0 meters.
-// The main node (U) remains at 50.0 meters so it perfectly aligns with the real road intersection.
-const HUB = offsetMeters(MAP_CENTER, rot(0), 12);
-const START_G = offsetMeters(HUB, rot(255), 32.0);
-const START_M = offsetMeters(HUB, rot(75), 32.0);
-const START_U = offsetMeters(HUB, rot(162), 48.0);
-
 const positions = { leftNode: START_G, rightNode: START_M, mainNode: START_U };
 
 const people = [
@@ -89,131 +70,61 @@ const people = [
     { id: "mainNode",  markerType: "blue-pulse-dot" }
 ];
 
-/* ==========================================================================
- * TRAJECTORY ENGINE
- * Converts a segment schedule into timed waypoints, then interpolates.
- * Speed and distance are SPECIFIED here, never emergent from trig functions.
- * ========================================================================== */
-// An orbit segment { d, o: { rev, a0, dir } } walks a small circle around a
-// point, starting from wherever the agent currently is. The radius is DERIVED
-// from the duration so the agent still covers exactly WALK_SPEED_MPS * d
-// metres -- a tight orbit walked for a long time covers the same distance as
-// a long straight walk. This is how conditions stay matched on distance and
-// speed while looking completely different.
-const ORBIT_SAMPLES_PER_REV = 24;
-const ORBIT_UNIT_PERIM = 2 * ORBIT_SAMPLES_PER_REV * Math.sin(Math.PI / ORBIT_SAMPLES_PER_REV);
-
-function buildWaypoints(startPos, segments) {
-    let pos = startPos, t = 0;
-    const keys = [{ t: 0, pos: pos }];
-    for (const seg of segments) {
-        if (seg.o) {
-            const rev = seg.o.rev, dir = seg.o.dir || 1;
-            const radius = WALK_SPEED_MPS * seg.d / (rev * ORBIT_UNIT_PERIM);
-            const centre = offsetMeters(pos, rot(seg.o.a0 + 180), radius);
-            const n = Math.max(8, Math.round(rev * ORBIT_SAMPLES_PER_REV));
-            for (let i = 1; i <= n; i++) {
-                t += (seg.d * 1000) / n;
-                pos = offsetMeters(centre, rot(seg.o.a0 + dir * 360 * rev * (i / n)), radius);
-                keys.push({ t: t, pos: pos });
-            }
-        } else {
-            t += seg.d * 1000;
-            if (seg.b !== null) pos = offsetMeters(pos, rot(seg.b), WALK_SPEED_MPS * seg.d);
-            keys.push({ t: t, pos: pos });
-        }
-    }
-    return keys;
-}
-
-// Pure linear interpolation would make an agent jump from standing still to
-// full walking speed in one frame, and stop just as abruptly. Easing the
-// fraction within each segment produces natural acceleration/deceleration.
-// Because the easing is applied to the fraction, not the endpoints, distance
-// and duration per segment are unchanged, so cross-condition matching holds.
-const EASE_MIX = 0.30;   // 0 = constant speed, 1 = full smoothstep
+const EASE_MIX = 0.30;
 function easeFraction(f) {
     const smooth = f * f * (3 - 2 * f);
     return (1 - EASE_MIX) * f + EASE_MIX * smooth;
 }
 
-function positionAt(keys, tMs) {
-    if (tMs <= 0) return keys[0].pos;
-    for (let i = 1; i < keys.length; i++) {
-        if (tMs <= keys[i].t) {
-            const a = keys[i - 1], b = keys[i];
-            const f = easeFraction((tMs - a.t) / (b.t - a.t));
-            return [a.pos[0] + (b.pos[0] - a.pos[0]) * f,
-                    a.pos[1] + (b.pos[1] - a.pos[1]) * f];
-        }
-    }
-    return keys[keys.length - 1].pos;
-}
+// GPS tween sabitleri
+const GPS_UPDATE_MS = 1000;
+const GPS_TWEEN_MS  = 900;
+const GPS_OFFSET_MS = { G: 0, M: 500 };
 
-// Deterministic GPS jitter: two sine components per axis with agent-specific
-// frequencies and phases, so G and M are never correlated by chance. It is
-// deterministic (not Math.random) so the sequence is identical for every
-// participant.
-const JITTER = {
-    G: { fx1: 0.31, px1: 0.00, fx2: 0.53, px2: 1.70, fy1: 0.24, py1: 2.20, fy2: 0.47, py2: 0.40 },
-    M: { fx1: 0.27, px1: 2.40, fx2: 0.61, px2: 0.90, fy1: 0.35, py1: 1.10, fy2: 0.19, py2: 2.90 }
-};
-function jitterMeters(who, tSec, amplitude) {
-    const j = JITTER[who];
-    const dx = (Math.sin(tSec * j.fx1 + j.px1) * 0.6 + Math.sin(tSec * j.fx2 + j.px2) * 0.4) * amplitude;
-    const dy = (Math.sin(tSec * j.fy1 + j.py1) * 0.6 + Math.sin(tSec * j.fy2 + j.py2) * 0.4) * amplitude;
-    return [dx, dy];
-}
-const JITTER_IDLE_M = 0.0;   // during the stable window (Block 0)
-const JITTER_MOVE_M = 0.5;   // while walking, so paths are not perfectly straight
-const JITTER_RAMP_MS = 2000; // amplitude eases between the two, never steps --
-                              // a step would teleport the marker and register
-                              // as a large instantaneous speed spike.
-function jitterAmplitude(elapsedMs) {
-    const t1 = T_STABLE + T_BLOCK1;
-    const t2 = t1 + T_BLOCK2;
-    const t3 = t2 + T_BLOCK3;
-
-    if (elapsedMs <= T_STABLE) return JITTER_IDLE_M;
-    if (elapsedMs >= t1 && elapsedMs <= t2) return JITTER_IDLE_M;
-    if (elapsedMs >= t3) return JITTER_IDLE_M;
-
-    return JITTER_MOVE_M;
-}
-
-const WAYPOINTS_G = buildWaypoints(START_G, SCHEDULE_G);
-const WAYPOINTS_M = buildWaypoints(START_M, SCHEDULE_M);
-
-// The agent's real position at a given instant, before the app displays it.
+// Gerçek pozisyon hesabı (JOIN mantığı)
 function truePosition(who, elapsedMs) {
-    const keys = (who === "G") ? WAYPOINTS_G : WAYPOINTS_M;
-    const moveStart = T_STABLE;
-    const base = (elapsedMs < moveStart)
-        ? keys[0].pos
-        : positionAt(keys, elapsedMs - moveStart);
-    const j = jitterMeters(who, elapsedMs / 1000, jitterAmplitude(elapsedMs));
-    let p = offsetMeters(base, 90, j[0]);   // east component
-    p = offsetMeters(p, 0, j[1]);           // north component
-    return p;
+    const tStableEnd = T_STABLE;                        // 4000
+    const tBlock1End = T_STABLE + T_BLOCK1;             // 16000
+    const tBlock2End = T_STABLE + T_BLOCK1 + T_BLOCK2;  // 18000
+    const tBlock3End = tBlock2End + T_BLOCK3;            // 30000
+
+    const startPos   = who === "G" ? START_G   : START_M;
+    const dirTarget  = who === "G" ? DIR_G_AFTER : DIR_M_AFTER;
+
+    // Faz 1 (0-4s): Başlangıç konumu, sabit
+    if (elapsedMs <= tStableEnd) {
+        return startPos;
+    }
+
+    // Faz 2 (4-16s): Başlangıç → MEET_POINT doğrusal
+    if (elapsedMs <= tBlock1End) {
+        const f = easeFraction((elapsedMs - tStableEnd) / T_BLOCK1);
+        return [
+            startPos[0] + (MEET_POINT[0] - startPos[0]) * f,
+            startPos[1] + (MEET_POINT[1] - startPos[1]) * f
+        ];
+    }
+
+    // Faz 3 (16-18s): MEET_POINT'te sabit
+    if (elapsedMs <= tBlock2End) {
+        return MEET_POINT;
+    }
+
+    // Faz 4 (18-30s): MEET_POINT'ten yön hedefine doğru, normal yürüyüş hızı
+    if (elapsedMs <= tBlock3End) {
+        const elapsed4 = elapsedMs - tBlock2End;
+        const bearing = calculateBearing(MEET_POINT, dirTarget);
+        const distanceTraveled = WALK_SPEED_MPS * (elapsed4 / 1000);
+        return offsetMeters(MEET_POINT, bearing, distanceTraveled);
+    }
+
+    // Faz 5 (30-33s): Faz 4'ün bittiği konumda sabit
+    const bearing = calculateBearing(MEET_POINT, dirTarget);
+    const distanceTraveled = WALK_SPEED_MPS * (T_BLOCK3 / 1000);
+    return offsetMeters(MEET_POINT, bearing, distanceTraveled);
 }
 
-/* --------------------------------------------------------------------------
- * GPS UPDATE CADENCE
- * A real location-sharing app does not receive a continuous stream. It gets a
- * fix every few seconds and animates the marker to catch up, then the marker
- * sits still until the next fix. Rendering the true position at 60 fps looks
- * smoother than any real app and is one of the strongest cues that a display
- * is generated rather than live. Sampling it here reproduces the real rhythm.
- * The two agents use different offsets because two phones never report on the
- * same clock -- identical update instants would themselves be a tell.
- * This changes only WHEN a position is shown, never WHERE: the sampled points
- * lie exactly on the scheduled path, so distance, duration, mean speed and the
- * matching across conditions are all untouched.
- * ------------------------------------------------------------------------ */
-const GPS_UPDATE_MS = 1000;   // interval between fixes (1 s so Block 2's 2 s pause renders as a visible stop)
-const GPS_TWEEN_MS  = 900;    // catch-up animation (90% of interval), then the marker rests
-const GPS_OFFSET_MS = { G: 0, M: 500 };   // staggered so G and M never pulse on the same tick
-
+// GPS tween ile pürüzsüz marker hareketi
 function agentPosition(who, elapsedMs) {
     const offset = GPS_OFFSET_MS[who];
     const k = Math.floor((elapsedMs - offset) / GPS_UPDATE_MS);
@@ -227,16 +138,12 @@ function agentPosition(who, elapsedMs) {
             from[1] + (to[1] - from[1]) * f];
 }
 
-/* ==========================================================================
- * BROWSER RUNTIME
- * Everything below only executes in a browser; the module export at the end
- * lets an audit script load this file in Node to verify the trajectories.
- * ========================================================================== */
 let animationStarted = false;
 let userNickname = "";
 let map = null;
 const markerInstances = {};
 let startTime = null;
+let animationStartWallClock = null;
 
 function createMarkerElement(person) {
     const clusterEl = document.createElement("div");
@@ -256,17 +163,17 @@ function createMarkerElement(person) {
         agentEl.appendChild(mapsDotContainer);
         const labelEl = document.createElement("div");
         labelEl.className = "agent-label";
-        labelEl.textContent = userNickname || "Kullanıcı";
+        labelEl.textContent = userNickname || "User";
         agentEl.appendChild(labelEl);
         agentEl.setAttribute("role", "img");
-        agentEl.setAttribute("aria-label", (userNickname || "Kullanıcı") + " konumu, harita üzerinde");
+        agentEl.setAttribute("aria-label", (userNickname || "User") + " location on map");
     } else if (person.markerType === "grey-letter-dot") {
         const greyDot = document.createElement("div");
         greyDot.className = "experimental-grey-letter-dot";
         greyDot.textContent = person.initial;
         agentEl.appendChild(greyDot);
         agentEl.setAttribute("role", "img");
-        agentEl.setAttribute("aria-label", "Katılımcı " + person.initial + " konumu, harita üzerinde");
+        agentEl.setAttribute("aria-label", "Participant " + person.initial + " location on map");
     }
     clusterEl.appendChild(agentEl);
     return clusterEl;
@@ -292,41 +199,26 @@ function animateNodes(timestamp) {
 
     if (markerInstances["leftNode"])  markerInstances["leftNode"].setLngLat(g);
     if (markerInstances["rightNode"]) markerInstances["rightNode"].setLngLat(m);
-    // The participant's own marker (mainNode) never moves.
 
     if (elapsed < TOTAL_ANIMATION_DURATION) {
         requestAnimationFrame(animateNodes);
     } else {
-        setTimeout(() => sendCompletionSignal("normal"), FINAL_HOLD_DURATION);
+        sendCompletionSignal("normal");
     }
 }
 
-/* ==========================================================================
- * QUALTRICS HANDSHAKE
- * The payload carries technical information only. The participant's nickname
- * is NEVER transmitted -- it exists only in the browser for the session,
- * consistent with the instruction that only the participant sees the full name.
- * ========================================================================== */
 const SESSION_ID = "sess_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
-let qualtricsAckReceived = false;
 let hasSentCompletion = false;
-let handshakeIntervalId = null;
-let animationStartWallClock = null;
 
 function buildPayload(reason) {
     return {
         type: "MAP_ANIMATION_COMPLETE",
-        // Clearly-labelled condition identifier for the Qualtrics-side
-        // listener to write into Embedded Data. `condition` is the short
-        // code ("IM" | "SJ" | "SJC") that should be stored as the variable
-        // value; `conditionLabel` is included alongside it purely so the
-        // saved data is human-readable/auditable without a codebook lookup.
-        condition: CONDITION,                     // "IM" | "SJ" | "SJC"
+        condition: CONDITION,
         conditionLabel: CONDITION_LABEL,
         sessionId: SESSION_ID,
-        status: (reason === "normal") ? "complete" : "incomplete",
-        reason: reason,                           // normal | timeout | map-load-failed | manual-fallback
-        elapsedMs: animationStartWallClock ? (Date.now() - animationStartWallClock) : null,
+        status: "complete",
+        reason: reason,
+        elapsedMs: TOTAL_ANIMATION_DURATION,
         timestamp: Date.now()
     };
 }
@@ -335,82 +227,267 @@ function sendCompletionSignal(reason) {
     if (hasSentCompletion) return;
     hasSentCompletion = true;
     const payload = buildPayload(reason);
-
-    let attempts = 0;
-    const MAX_ATTEMPTS = 15;   // ~6 s of retries at 400 ms
-    handshakeIntervalId = setInterval(() => {
-        attempts++;
-        try {
-            if (window.parent) window.parent.postMessage(payload, "*");
-        } catch (e) {
-            console.warn("postMessage failed:", e);
-        }
-        if (qualtricsAckReceived || attempts >= MAX_ATTEMPTS) {
-            clearInterval(handshakeIntervalId);
-            if (!qualtricsAckReceived) {
-                console.warn("No acknowledgment from Qualtrics; showing manual continue button.");
-                showManualContinueFallback();
-            }
-        }
-    }, 400);
+    try {
+        if (window.parent) window.parent.postMessage(payload, "*");
+    } catch (e) {
+        console.warn("postMessage failed:", e);
+    }
 }
 
-function showManualContinueFallback() {
-    if (document.getElementById("manual-continue-fallback")) return;
-    const wrap = document.createElement("div");
-    wrap.id = "manual-continue-fallback";
-    wrap.setAttribute("role", "alert");
-    wrap.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);" +
-        "background:#fff;border:1px solid #ccc;border-radius:8px;padding:14px 18px;" +
-        "box-shadow:0 2px 10px rgba(0,0,0,0.15);z-index:9999;text-align:center;font-family:sans-serif;";
-    wrap.innerHTML = '<p style="margin:0 0 10px 0;">Bu bölüm tamamlandı. Devam etmek için lütfen aşağıdaki butona tıklayın.</p>';
-    const btn = document.createElement("button");
-    btn.textContent = "Devam Et";
-    btn.setAttribute("aria-label", "Ankete devam et");
-    btn.style.cssText = "padding:8px 20px;border:none;border-radius:6px;background:#2b6cb0;color:#fff;font-size:15px;cursor:pointer;";
-    btn.addEventListener("click", () => {
-        try {
-            if (window.parent) window.parent.postMessage(buildPayload("manual-fallback"), "*");
-        } catch (e) { /* ignore */ }
-        wrap.remove();
-    });
-    wrap.appendChild(btn);
-    document.body.appendChild(wrap);
-}
-
-/* ==========================================================================
- * TIMEOUTS
- * Two independent caps. The global cap is generous because nickname entry is
- * self-paced; the animation cap is tight because it starts only once the map
- * sequence begins.
- * ========================================================================== */
 const GLOBAL_TIMEOUT_MS = 240 * 1000;
-const ANIMATION_TIMEOUT_MS = TOTAL_ANIMATION_DURATION + FINAL_HOLD_DURATION + 15000; // 48 s
+const ANIMATION_TIMEOUT_MS = TOTAL_ANIMATION_DURATION + 15000;
 
-/* ==========================================================================
- * ONBOARDING FLOW
- * ========================================================================== */
-function bootstrap() {
-    window.addEventListener("message", (event) => {
-        if (event.data && event.data.type === "MAP_ANIMATION_ACK" && event.data.sessionId === SESSION_ID) {
-            qualtricsAckReceived = true;
+function injectUIDesignStyles() {
+    if (document.getElementById("study-ui-styles")) return;
+    const style = document.createElement('style');
+    style.id = "study-ui-styles";
+    style.innerHTML = `
+        :root {
+            --brand-green: rgba(220, 242, 224, 0.95);
         }
-    });
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            background-color: #f2efe6;
+        }
+
+        #experiment-flow-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .flow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            text-align: center;
+            padding: 0 20px;
+        }
+        .flow-step.hidden {
+            display: none !important;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(43, 108, 176, 0.15);
+            border-top: 4px solid #2b6cb0;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modern-success-badge {
+            width: 56px;
+            height: 56px;
+            background: #e6f4ea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.12);
+        }
+        .modern-success-badge svg {
+            width: 28px;
+            height: 28px;
+            color: #137333;
+            stroke-width: 3.8;
+        }
+
+        .flow-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            letter-spacing: -0.3px;
+            margin: 0;
+        }
+
+        .nickname-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 280px;
+        }
+        .nickname-input {
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+            text-align: center;
+        }
+        .nickname-input:focus {
+            border-color: #2b6cb0;
+            box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.15);
+        }
+        .nickname-btn {
+            padding: 12px;
+            background: #2b6cb0;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .nickname-btn:active {
+            transform: scale(0.98);
+            background: #2c5282;
+        }
+
+        #modern-app-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 64px;
+            background: #ffffff;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        }
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            color: #1a1a1a;
+        }
+        .logo-icon-wrapper {
+            width: 34px;
+            height: 34px;
+            background: #f0f4f8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+        }
+        .logo-icon-wrapper svg {
+            color: #2b6cb0;
+        }
+
+        #container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .experimental-grey-letter-dot {
+            width: 37.8px;
+            height: 37.8px;
+            background: #64748b;
+            color: white;
+            border: 2.25px solid #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 17px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        }
+        .google-maps-dot-container {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .google-maps-pulse {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            background: rgba(66, 133, 244, 0.4);
+            border-radius: 50%;
+            animation: google-pulse 2s infinite ease-out;
+        }
+        .google-maps-core {
+            position: relative;
+            width: 21px;
+            height: 21px;
+            background: #4285F4;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+        }
+        @keyframes google-pulse {
+            0% { transform: scale(0.6); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .agent-label {
+            position: absolute;
+            bottom: -24px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1a1a1a;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+function bootstrap() {
+    injectUIDesignStyles();
 
     setTimeout(() => {
         if (!hasSentCompletion) {
-            console.warn("Global maximum duration exceeded; auto-advancing.");
             sendCompletionSignal("timeout");
         }
     }, GLOBAL_TIMEOUT_MS);
 
-    const flowScreen    = document.getElementById("experiment-flow-screen");
+    const flowScreen     = document.getElementById("experiment-flow-screen");
     const stepConnecting = document.getElementById("step-connecting");
     const stepWaiting    = document.getElementById("step-waiting");
     const stepJoined     = document.getElementById("step-joined");
     const stepNickname   = document.getElementById("step-nickname");
     const nicknameInput  = document.getElementById("nickname-input");
     const submitBtn      = document.getElementById("submit-btn");
+
+    if (stepJoined) {
+        let badge = stepJoined.querySelector('.modern-success-badge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.className = 'modern-success-badge';
+            badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            stepJoined.insertBefore(badge, stepJoined.firstChild);
+        }
+    }
 
     function startExperimentFlow() {
         setTimeout(() => {
@@ -423,7 +500,7 @@ function bootstrap() {
                     if (stepJoined) stepJoined.classList.add("hidden");
                     if (stepNickname) stepNickname.classList.remove("hidden");
                     if (nicknameInput) nicknameInput.focus();
-                }, 3000);
+                }, 4000);
             }, 5000);
         }, 3000);
     }
@@ -431,9 +508,24 @@ function bootstrap() {
     function beginAnimation() {
         animationStarted = true;
         animationStartWallClock = Date.now();
+
+        const modernHeader = document.createElement('div');
+        modernHeader.id = 'modern-app-header';
+        modernHeader.innerHTML = `
+            <div class="header-logo">
+                <div class="logo-icon-wrapper">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                </div>
+                NeredeApp
+            </div>
+        `;
+        document.body.appendChild(modernHeader);
+
         setTimeout(() => {
             if (!hasSentCompletion) {
-                console.warn("Animation did not complete in time; auto-advancing.");
                 sendCompletionSignal("timeout");
             }
         }, ANIMATION_TIMEOUT_MS);
@@ -441,7 +533,7 @@ function bootstrap() {
     }
 
     function handleLoginSubmit() {
-        const val = nicknameInput ? nicknameInput.value.trim() : "Katılımcı";
+        const val = nicknameInput ? nicknameInput.value.trim() : "Participant";
         if (val === "") { alert("Lütfen geçerli bir takma ad girin."); return; }
         userNickname = val;
         if (flowScreen) {
@@ -457,67 +549,44 @@ function bootstrap() {
 
     if (submitBtn) {
         submitBtn.addEventListener("click", handleLoginSubmit);
-        submitBtn.setAttribute("aria-label", "Takma adı gönder ve devam et");
+        submitBtn.setAttribute("aria-label", "Submit nickname and continue");
     }
     if (nicknameInput) {
-        nicknameInput.setAttribute("aria-label", "Takma adınızı girin");
+        nicknameInput.setAttribute("aria-label", "Enter your nickname");
         nicknameInput.addEventListener("keypress", (e) => { if (e.key === "Enter") handleLoginSubmit(); });
     }
 
-    /* ------------------------------------------------------------------
-     * MAP LOAD FALLBACK
-     * ------------------------------------------------------------------ */
     let mapHasLoaded = false;
-    let mapLoadFallbackTriggered = false;
+    let mapLoadTimeoutId = null;
 
-    // ?debug=1 on the URL shows the underlying technical error instead of the
-    // generic participant-facing message. Participants never see this.
-    const DEBUG = (typeof location !== "undefined") && /[?&]debug=1/.test(location.search);
-
-    function showMapLoadFallback(detail) {
-        if (mapLoadFallbackTriggered) return;
-        mapLoadFallbackTriggered = true;
-        if (DEBUG) console.error("Map load failure detail:", detail);
-
+    function showMapLoadFallback() {
+        if (mapHasLoaded) return;
         const mapContainer = document.getElementById("map");
         if (mapContainer) mapContainer.style.visibility = "hidden";
 
         const fallback = document.createElement("div");
         fallback.id = "map-load-fallback";
-        fallback.setAttribute("role", "alert");
-        fallback.setAttribute("aria-live", "assertive");
         fallback.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;" +
             "display:flex;align-items:center;justify-content:center;background:#f7f7f7;" +
             "font-family:sans-serif;text-align:center;padding:24px;box-sizing:border-box;z-index:5000;";
         fallback.innerHTML =
             '<div style="max-width:420px;">' +
             '<p style="font-size:17px;color:#333;margin-bottom:8px;">Harita şu anda yüklenemedi.</p>' +
-            '<p style="font-size:14px;color:#666;">Bağlantınız kontrol ediliyor, lütfen bekleyiniz. Bu ekran otomatik olarak ilerleyecektir.</p>' +
-            (DEBUG ? '<pre style="margin-top:16px;padding:10px;background:#fff;border:1px solid #d00;' +
-                     'color:#a00;font-size:12px;text-align:left;white-space:pre-wrap;">' +
-                     String(detail || "no detail captured") + "</pre>" : "") +
+            '<p style="font-size:14px;color:#666;">Bağlantınız kontrol ediliyor, lütfen bekleyiniz.</p>' +
             "</div>";
         document.body.appendChild(fallback);
 
         if (!animationStarted) {
             animationStarted = true;
             animationStartWallClock = Date.now();
-            setTimeout(() => sendCompletionSignal("map-load-failed"),
-                       TOTAL_ANIMATION_DURATION + FINAL_HOLD_DURATION);
+            setTimeout(() => sendCompletionSignal("map-load-failed"), TOTAL_ANIMATION_DURATION);
         }
     }
 
-    // Basemap layers to suppress, by their vector-tile source-layer name.
-    const HIDDEN_SOURCE_LAYERS = [
-        "poi", "housenumber", "mountain_peak", "aerodrome_label", "aeroway"
-    ];
-
-    // ...but never hide green-space naming. The participant needs to be able
-    // to tell the agents are in a named place rather than on blank ground.
+    const HIDDEN_SOURCE_LAYERS = ["poi", "housenumber", "mountain_peak", "aerodrome_label", "aeroway"];
     const KEEP_VISIBLE = /park|garden|playground|pitch|forest|wood|water_name|nature|recreation/;
 
     function declutterBasemap() {
-        let hidden = 0, kept = 0;
         try {
             const layers = (map.getStyle() && map.getStyle().layers) || [];
             layers.forEach(layer => {
@@ -526,85 +595,19 @@ function bootstrap() {
                 const isExtrusion = layer.type === "fill-extrusion";
 
                 if (KEEP_VISIBLE.test(id) || srcLayer === "park") {
-                    if (!isExtrusion) { kept++; return; }
+                    if (!isExtrusion) return;
                 }
                 if (isExtrusion || HIDDEN_SOURCE_LAYERS.indexOf(srcLayer) !== -1) {
-                    try { map.setLayoutProperty(layer.id, "visibility", "none"); hidden++; }
-                    catch (e) { /* layer may not accept layout changes */ }
+                    try { map.setLayoutProperty(layer.id, "visibility", "none"); } catch (e) {}
                 }
             });
-        } catch (e) {
-            console.warn("Could not declutter basemap:", e);
-        }
-        if (DEBUG) console.log("Declutter: " + hidden + " layers hidden, " + kept + " green-space layers kept.");
+        } catch (e) {}
     }
 
-    /* ------------------------------------------------------------------
-     * PARK / PLACE NAMING
-     * If the style has no label layer of its own for the relevant source, add
-     * one so the area is identifiable by name. Font is copied from an
-     * existing symbol layer rather than hard-coded, because a font name
-     * outside the style's glyph set renders nothing at all.
-     * ------------------------------------------------------------------ */
-    function ensureParkLabels() {
-        try {
-            const style = map.getStyle();
-            const layers = style.layers || [];
-
-            const alreadyLabelled = layers.some(l =>
-                l.type === "symbol" &&
-                (String(l["source-layer"] || "").toLowerCase() === "park" ||
-                 /park/.test(String(l.id || "").toLowerCase())));
-            if (alreadyLabelled) {
-                if (DEBUG) console.log("Style already labels parks; nothing added.");
-                return;
-            }
-
-            const vectorSource = Object.keys(style.sources || {}).find(
-                k => style.sources[k] && style.sources[k].type === "vector");
-            if (!vectorSource) return;
-
-            let font = null;
-            for (const l of layers) {
-                if (l.type === "symbol" && l.layout && l.layout["text-font"]) { font = l.layout["text-font"]; break; }
-            }
-
-            map.addLayer({
-                id: "study-park-label",
-                type: "symbol",
-                source: vectorSource,
-                "source-layer": "park",
-                filter: ["has", "name"],
-                layout: Object.assign({
-                    "text-field": ["get", "name"],
-                    "text-size": 14,
-                    "text-max-width": 8,
-                    "symbol-placement": "point"
-                }, font ? { "text-font": font } : {}),
-                paint: {
-                    "text-color": "#3d6b47",
-                    "text-halo-color": "#ffffff",
-                    "text-halo-width": 1.6
-                }
-            });
-            if (DEBUG) console.log("Added park label layer from source '" + vectorSource + "'.");
-        } catch (e) {
-            console.warn("Could not add park labels:", e);
-        }
-    }
-
-    /* ------------------------------------------------------------------
-     * BASEMAP PALETTE
-     * Recolours the vector style to the soft, warm scheme used by consumer
-     * location apps: cream land, muted green parks, pale blue water, white
-     * roads with a light casing. Layers are matched by their vector-tile
-     * source-layer and id rather than hard-coded style ids, so this survives
-     * upstream changes to the Liberty style.
-     * ------------------------------------------------------------------ */
     const PALETTE = {
         land:      "#f2efe6",
-        green:     "#bfe3ab",   // parks and named green space
-        greenSoft: "#d6ead0",   // generic landcover, kept lighter so parks stand out
+        green:     "#bfe3ab",
+        greenSoft: "#d6ead0",
         greenDeep: "#a8d493",
         water:     "#a9d8f0",
         road:      "#ffffff",
@@ -615,7 +618,7 @@ function bootstrap() {
     };
 
     function paint(id, prop, value) {
-        try { map.setPaintProperty(id, prop, value); } catch (e) { /* not applicable */ }
+        try { map.setPaintProperty(id, prop, value); } catch (e) {}
     }
 
     function applyFindMyPalette() {
@@ -625,10 +628,8 @@ function bootstrap() {
                 const id = String(layer.id || "").toLowerCase();
                 const sl = String(layer["source-layer"] || "").toLowerCase();
                 const t  = layer.type;
-                const isGreen = sl === "park" ||
-                    /park|grass|wood|forest|garden|pitch|golf|cemetery|scrub|meadow|orchard/.test(id);
-                const isWater = sl === "water" || sl === "waterway" ||
-                    /water|ocean|river|lake|sea|bay/.test(id);
+                const isGreen = sl === "park" || /park|grass|wood|forest|garden|pitch|golf|cemetery|scrub|meadow|orchard/.test(id);
+                const isWater = sl === "water" || sl === "waterway" || /water|ocean|river|lake|sea|bay/.test(id);
 
                 if (t === "background") { paint(id, "background-color", PALETTE.land); return; }
                 if (isWater) {
@@ -666,40 +667,12 @@ function bootstrap() {
                     paint(id, "text-halo-width", 1.4);
                 }
             });
-        } catch (e) {
-            console.warn("Could not apply palette:", e);
-        }
-    }
-
-    // Debug-only overlay reporting the true on-screen scale, so geometry can
-    // be checked against the design figures without guessing from screenshots.
-    function showScaleReadout() {
-        try {
-            const pG = map.project(START_G), pM = map.project(START_M);
-            const pxGM = Math.hypot(pG.x - pM.x, pG.y - pM.y);
-            const canvas = map.getCanvas();
-            const mPerPx = 156543.03392 * Math.cos(MAP_CENTER[1] * Math.PI / 180) /
-                           Math.pow(2, MAP_ZOOM);
-            const box = document.createElement("div");
-            box.style.cssText = "position:fixed;top:56px;left:8px;z-index:6000;background:rgba(0,0,0,0.82);" +
-                "color:#fff;font:11px ui-monospace,Menlo,Consolas,monospace;padding:8px 10px;" +
-                "border-radius:6px;white-space:pre;line-height:1.5;";
-            box.textContent =
-                "condition   " + CONDITION + "\n" +
-                "zoom        " + map.getZoom().toFixed(2) + "\n" +
-                "m per px    " + mPerPx.toFixed(3) + "\n" +
-                "G-M px      " + pxGM.toFixed(1) + "\n" +
-                "map canvas  " + canvas.clientWidth + " x " + canvas.clientHeight + " css px\n" +
-                "devicePixelRatio " + (window.devicePixelRatio || 1);
-            document.body.appendChild(box);
-        } catch (e) { console.warn("scale readout failed", e); }
+        } catch (e) {}
     }
 
     startExperimentFlow();
 
     const MAP_LOAD_TIMEOUT_MS = 8000;
-    let mapLoadTimeoutId = null;
-
     try {
         if (typeof maplibregl !== "undefined") {
             map = new maplibregl.Map({
@@ -711,130 +684,78 @@ function bootstrap() {
                 maxZoom: MAP_ZOOM,
                 dragPan: false, doubleClickZoom: false, boxZoom: false,
                 keyboard: false, touchZoomRotate: false,
-                pixelRatio: window.devicePixelRatio || 2
+                pixelRatio: window.devicePixelRatio || 2,
+                attributionControl: true
             });
 
             mapLoadTimeoutId = setTimeout(() => {
-                if (!mapHasLoaded) {
-                    console.warn("Map did not load within the allotted time.");
-                    showMapLoadFallback("Map 'load' event did not fire within " +
-                        MAP_LOAD_TIMEOUT_MS + " ms. Most common cause: the page was " +
-                        "opened from disk (file://), which blocks MapLibre's web workers. " +
-                        "Serve the folder over http:// instead. Current protocol: " +
-                        (typeof location !== "undefined" ? location.protocol : "unknown"));
-                }
+                if (!mapHasLoaded) showMapLoadFallback();
             }, MAP_LOAD_TIMEOUT_MS);
 
             map.on("load", () => {
                 mapHasLoaded = true;
                 if (mapLoadTimeoutId) clearTimeout(mapLoadTimeoutId);
 
-                // At zoom 18 the OSM basemap renders every shop, bank and
-                // transit entrance. Those icons are the same size and colour
-                // family as the agent markers, so decluttering keeps streets,
-                // parks, water and place names -- what a real location app shows.
                 declutterBasemap();
                 applyFindMyPalette();
-                 // Define the geometry
-   map.addSource('virtual-roads', {
-       'type': 'geojson',
-       'data': {
-           'type': 'FeatureCollection',
-           'features': [
-               {
-                   'type': 'Feature',
-                   'geometry': {
-                       'type': 'LineString',
-                       'coordinates': [START_U, START_G]
-                   }
-               },
-               {
-                   'type': 'Feature',
-                   'geometry': {
-                       'type': 'LineString',
-                       'coordinates': [START_U, START_M]
-                   }
-               }
-           ]
-       }
-   });
 
-   let firstRoadCoreId = null;
-   let firstBuildingOrTextId = null;
+                map.addSource('virtual-roads', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'FeatureCollection',
+                        'features': [
+                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [START_G, MEET_POINT] } },
+                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [START_M, MEET_POINT] } },
+                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [ROAD_START, ROAD_TARGET_1] } },
+                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [ROAD_START, ROAD_TARGET_2] } },
+                            { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [[32.888292, 39.930351], [32.887327, 39.930721]] } }
+                        ]
+                    }
+                });
 
-   const layers = map.getStyle().layers;
-   for (const layer of layers) {
-       const id = (layer.id || "").toLowerCase();
-       const sl = (layer['source-layer'] || "").toLowerCase();
-      
-       // buildings and text layers are the only ones that can be guaranteed to be above roads, so we use the first one we find as the insertion point for our virtual road layers.
-       if (!firstBuildingOrTextId && (layer.type === 'symbol' || sl === 'building' || layer.type === 'fill-extrusion')) {
-           firstBuildingOrTextId = layer.id;
-       }
+                let firstRoadCoreId = null;
+                let firstBuildingOrTextId = null;
 
-       // detect the map's existing "internal roads" (the white parts)
-       if (sl === 'transportation' && layer.type === 'line') {
-           const isCasing = /casing|outline|bridge|tunnel/.test(id);
-           if (!isCasing && !firstRoadCoreId) {
-               firstRoadCoreId = layer.id; // the first detected internal road core layer
-           }
-       }
-   }
+                const layers = map.getStyle().layers;
+                for (const layer of layers) {
+                    const id = (layer.id || "").toLowerCase();
+                    const sl = (layer['source-layer'] || "").toLowerCase();
+                    if (!firstBuildingOrTextId && (layer.type === 'symbol' || sl === 'building' || layer.type === 'fill-extrusion')) {
+                        firstBuildingOrTextId = layer.id;
+                    }
+                    if (sl === 'transportation' && layer.type === 'line') {
+                        const isCasing = /casing|outline|bridge|tunnel/.test(id);
+                        if (!isCasing && !firstRoadCoreId) {
+                            firstRoadCoreId = layer.id;
+                        }
+                    }
+                }
 
-   // 3. Casing - placed below the core and above the basemap, so it appears as a light outline around the white road.
-   map.addLayer({
-       'id': 'virtual-roads-casing',
-       'type': 'line',
-       'source': 'virtual-roads',
-       'layout': {
-           'line-join': 'round',
-           'line-cap': 'butt' // prevents the casing from extending beyond the core.
-       },
-       'paint': {
-           'line-color': '#e4dfd3',
-           'line-width': 12
-       }
-   }, firstRoadCoreId || firstBuildingOrTextId);
+                map.addLayer({
+                    'id': 'virtual-roads-casing',
+                    'type': 'line',
+                    'source': 'virtual-roads',
+                    'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                    'paint': { 'line-color': '#e4dfd3', 'line-width': 12 }
+                }, firstRoadCoreId || firstBuildingOrTextId);
 
-   // 4. Core Road - placed below the casing and above the basemap, so it appears as the main road.
-   map.addLayer({
-       'id': 'virtual-roads-core',
-       'type': 'line',
-       'source': 'virtual-roads',
-       'layout': {
-           'line-join': 'round',
-           'line-cap': 'butt' // prevents the core from extending beyond the casing.
-       },
-       'paint': {
-           'line-color': '#ffffff',
-           'line-width': 8
-       }
-   }, firstBuildingOrTextId);
+                map.addLayer({
+                    'id': 'virtual-roads-core',
+                    'type': 'line',
+                    'source': 'virtual-roads',
+                    'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                    'paint': { 'line-color': '#ffffff', 'line-width': 8 }
+                }, firstBuildingOrTextId);
 
-                ensureParkLabels();
-
-                // No CSS filter: a filter desaturates everything uniformly.
-                // The palette above recolours the actual style layers instead.
                 map.getCanvas().style.filter = "none";
-
-                if (DEBUG) showScaleReadout();
             });
 
-            map.on("error", (e) => {
-                console.error("Map error event:", e);
-                if (!mapHasLoaded) showMapLoadFallback("MapLibre error event: " +
-                    ((e && e.error && e.error.message) || (e && e.message) || JSON.stringify(e)));
+            map.on("error", () => {
+                if (!mapHasLoaded) showMapLoadFallback();
             });
-        } else {
-            console.warn("MapLibre CDN library failed to load.");
-            showMapLoadFallback("maplibregl is undefined -- the CDN script tag in " +
-                "index.html did not load. Check the network tab for " +
-                "cdn.jsdelivr.net/npm/maplibre-gl@3.6.2");
         }
     } catch (error) {
-        console.error("Map initialization failed:", error);
-        showMapLoadFallback("Exception during map construction: " +
-            (error && error.message ? error.message : String(error)));
+        showMapLoadFallback();
     }
 }
 
@@ -842,11 +763,11 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     bootstrap();
 }
 
-/* Exported for offline auditing (ignored by the browser). */
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
-        CONDITION, CONDITION_LABEL, SCHEDULE_G, SCHEDULE_M,
-        START_G, START_M, START_U, MAP_CENTER, MAP_ZOOM, WALK_SPEED_MPS,
+        CONDITION, CONDITION_LABEL,
+        START_G, START_M, START_U, MEET_POINT, DIR_G_AFTER, DIR_M_AFTER,
+        MAP_CENTER, MAP_ZOOM, WALK_SPEED_MPS,
         SCENE_ROTATION_DEG,
         T_STABLE, T_BLOCK1, T_BLOCK2, T_BLOCK3, T_BLOCK4, TOTAL_ANIMATION_DURATION,
         agentPosition, truePosition, offsetMeters,
