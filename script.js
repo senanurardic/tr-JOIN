@@ -8,10 +8,10 @@ const CONDITION = "JOIN";
 const CONDITION_LABEL = "Join Condition";
 
 // Map & Camera Settings
-const MAP_CENTER = [32.889220, 39.929590];
+const MAP_CENTER = [32.888932, 39.929302];
 const SCENE_ROTATION_DEG = 41;
 function rot(bearingDeg) { return (bearingDeg + SCENE_ROTATION_DEG + 360) % 360; }
-const MAP_ZOOM = 17.3;
+const MAP_ZOOM = 17.0;
 
 const WALK_SPEED_MPS = 2.1;
 
