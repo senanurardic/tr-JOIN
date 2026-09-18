@@ -8,12 +8,12 @@ const CONDITION = "JOIN";
 const CONDITION_LABEL = "Join Condition";
 
 // Map & Camera Settings
-const MAP_CENTER = [32.888735, 39.929456];
+const MAP_CENTER = [32.889220, 39.929590];
 const SCENE_ROTATION_DEG = 41;
 function rot(bearingDeg) { return (bearingDeg + SCENE_ROTATION_DEG + 360) % 360; }
 const MAP_ZOOM = 17.3;
 
-const WALK_SPEED_MPS = 1.5;
+const WALK_SPEED_MPS = 2.1;
 
 // Timeline parameters in milliseconds (Total = 33,000 ms)
 const T_STABLE = 4000;   // 0-4s: Hold
